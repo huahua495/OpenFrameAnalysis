@@ -1,0 +1,38 @@
+Glide.with(context).load(url).into(targetView);
+
+
+
+Glide.with()
+
+    做一些准备工作,主要是为了RequestManager对象，管理图片请求。
+
+    RequestManager通过 RequestManagerRetriever 生产。
+
+    RequestManagerRetriever内部的get(context)方法，通过对contex类型进行判断
+
+    对不同声明周期的context进行不同操作。
+    if(context instanceof Application){
+        //获取Application单例的 RequestManager
+    }else if(context instanceof activity){
+        添加一个没有界面的RequestManagerFragment 与activity绑定。
+        RequestManagerFragment成员变量实现lifecycle，实现声明周期管理。
+        RequestManagerFragment 成员变量 RequestManager
+    }
+
+
+load(url);
+
+    RequestManager类。
+
+    支持多种图片来源，DrawableTypeRequest<T>
+    extends DrawableReequestBuilder<T>
+    extends GenericRequestBuilder<T>
+
+    RequestTracker请求追踪器。
+
+into(targetView);
+
+    首先判断是否主线程，UI操作必须在主线程中进行。
+
+
+

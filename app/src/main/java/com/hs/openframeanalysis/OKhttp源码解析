@@ -1,0 +1,229 @@
+********OKHttp同步异步简单用法:
+    step1:创建OkhttpClient和Request对象
+    step2.将Request封装成为Call对象
+    step3.调用Call的execute()方法进行同步请求。
+
+
+    代码实现
+
+    step1:
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                            .connectTimeout(TIME_OUT, TimeUnit.SECONDS)
+                            .callTimeout(TIME_OUT, TimeUnit.SECONDS)
+                            .writeTimeout(TIME_OUT, TimeUnit.SECONDS)
+                            .build();
+        Request request=new Request.Builder().build();
+
+    step2:
+        Call call= okHttpClient.newCall(request);
+
+    step3:
+        //同步
+        Response response=call.execute();
+        //异步 (这里需要注意onFailure与onResponse 都是在子线程中执行的)
+        call.enqueue(new Callback() {
+                            @Override
+                            public void onFailure(Call call, IOException e) {
+                            }
+                            @Override
+                            public void onResponse(Call call, Response response) throws IOException {
+                            }
+                        });
+    OkHttp同步需要注意:
+        发送请求后，就会进入阻塞状态，直到收到响应。
+
+
+
+********Dispatcher  分发器
+
+    同步请求时
+        call.execute() 实际调用Dispatcher的execute方法。
+        client.dispatcher().executed(this);
+
+        直接添加到同步请求队列中。
+
+    异步请求时
+        call.enqueue
+        client.dispatcher().enqueue(new AsyncCall(responseCallback))
+
+        AsyncCall实际上是一个Runable
+        AsyncCall extends NamedRunnable implements Runnable
+
+        enqueue方法总结
+        1.判断当前Call是否已执行
+        2.通过传递进来的CallBack对象,将其封装成为一个AsyncCall(本质是一个Runable)
+        3.通过client.dispatcher().enqueue  执行
+
+        if(请求队列小于最大请求数(64)&&小于当前请求数量(5)){
+            添加到请求队列中()
+            executorService().execute(call);
+        }else{
+            添加到准备的请求队列中()
+        }
+
+    Dispatcher内部成员ExecutorService (线程池)
+    内部有三个队列
+        1.等待执行的异步请求
+        2.正在执行的异步请求
+        3.正在执行的同步请求队列
+
+
+    okhttp内部线程池创建
+    Executor executorService = new ThreadPoolExecutor
+                    (0,                             //核心线程数为0,CPU空闲时会将所有线程全部销毁
+                    Integer.MAX_VALUE,              //设置最大线程数，
+                    60,                             //线程数大于核心线程数时，多余的线程最大存活时间
+                    TimeUnit.SECONDS, new SynchronousQueue<Runnable>(),
+                    Util.threadFactory("okhttp dispatcher", false)
+            );
+
+
+********OkHttp的任务调度
+
+    Q1:okhttp如何实现同步异步请求？
+
+        发送的同步/异步请求都会在dispatcher中管理其状态。
+
+    Q2.到底什么是dispatcher?
+
+        dispatcher的作用为维护请求的状态，并维护一个线程池，用于执行请求。
+
+    Q3.异步请求为什么要两个队列?
+
+        1.等待执行的队列
+        2.正在执行的队列
+
+        理解为一个生产着消费者模型。
+
+        Dispatcher 生产者
+        ExecutorService 消费者
+
+
+    Q4.那么readyAsyncCalls队列中的线程在什么时候才会被执行呢？
+
+        Dispatcher.finished();
+
+
+********OKhttp拦截器
+
+    拦截器是Okhttp中提供的一种强大机制，他可以实现网络监听，
+    请求以及响应重写，请求失败重试等功能。
+
+    主要分为两类拦截器：
+        1.应用程序拦截器
+        2.网络拦截器
+
+    okHttp内部提供的拦截器
+
+        RetryAndFollowUpInterceptor     重试和失败重定向
+        BridgeInterceptor               桥接和适配拦截器
+        CacheInterceptor                缓存拦截器
+        ConnectInterceptor              链接拦截器(负责建立可用的链接)
+        CallServerInterceptor           负责将http请求写入到io流当中
+
+
+    Response response= getResponseWithInterceptorChain();
+
+    getResponseWithInterceptorChain方法内部构成一个拦截器链，并依次执行，来获取服务器的响应。
+
+    List<Interceptor> interceptors = new ArrayList<>();
+    interceptors.addAll(client.interceptors());
+    interceptors.add(new RetryAndFollowUpInterceptor(client));
+    interceptors.add(new BridgeInterceptor(client.cookieJar()));
+    interceptors.add(new CacheInterceptor(client.internalCache()));
+    interceptors.add(new ConnectInterceptor(client));
+    if (!forWebSocket) {
+      interceptors.addAll(client.networkInterceptors());
+    }
+    interceptors.add(new CallServerInterceptor(forWebSocket));
+
+    //创建拦截器链对象
+    Interceptor.Chain chain = new RealInterceptorChain(
+                interceptors, transmitter, null, 0,
+                originalRequest, this, client.connectTimeoutMillis(),
+                client.readTimeoutMillis(), client.writeTimeoutMillis());
+    //通过拦截器链的proceed(Request)方法获取Response
+    Response response = chain.proceed(originalRequest);
+
+    ****************OKhttp拦截器总结
+        1.创建一系列拦截器,并将其放入到一个拦截器list中
+        2.创建一个拦截器链RealInterceptorChain，并执行拦截器链的
+            proceed方法
+
+    ****************OKhttp拦截器总结2
+
+        1.在发起请求前对request进行处理
+        2.调用下一个拦截器,获取Response
+        3.对response进行处理，返回给上一个拦截器
+
+
+
+    ********RetryAndFollowUpInterceptor     重试和失败重定向
+        1.获取Transmitter对象  此对象是OkHttp的应用程序和网络层之间的桥梁。
+        while(true){
+            2. Transmitter.prepareToConnect(request)
+            3. 此方法递归调用 response = realChain.proceed(request, transmitter, null);
+            4.根据异常结果或者响应结果判断是否进行重新请求
+        }
+
+
+    ********BridgeInterceptor               桥接和适配拦截器
+        1.是负责将用户构建的衣蛾Request请求转化为能够进行网络访问的请求
+        2.将这个符合网络请求的Request进行网络请求
+        3.将网络请求回来的响应Response转化为用户可用的Response
+
+    ********CacheInterceptor                缓存拦截器
+        根据CacheStrategy.Factory 创建缓存策略对象
+        最终使用DiskLruCache
+
+    ********ConnectInterceptor              链接拦截器(负责建立可用的链接)
+        1、ConnectInterceptor 获取Interceptor传过来的Transmitter
+        2、通过Transmitter.newExchange()创建Exchange对象。(Exchange用于传输单个HTTP请求和响应对。)
+
+            Transmitter.newExchange()方法内部:
+                ExchangeCodec codec = exchangeFinder.find();
+                Exchange result = new Exchange(...codec);
+
+            ExchangeCodec find()方法内部:
+                RealConnection resultConnection = findHealthyConnection()创建RealConnection对象
+
+            RealConnection findHealthyConnection()方法内部：
+                RealConnection candidate = findConnection();
+
+            RealConnection findConnection()方法内部:
+                首先判断当前connection是否可用，可用则返回，否则从连接池获取。
+                RealConnection.connect();
+            选择不同的连接方式，隧道连接或者Socket连接。
+
+        3、将Transmitter 与 Exchange传递给后面的拦截器 CallServerInterceptor。
+
+    ********CallServerInterceptor           负责将http请求写入到io流当中
+
+
+
+********ConnecttionPool 连接池
+
+    1.每次Http请求都会产生一个StreamAllocation对象
+    2.将StreamAllocation对象的弱引用添加到RealConnection对象的allocations集合中
+    3.从链接池中获取并复用链接
+
+    Executor
+
+    ********ConnecttionPool 如何实现自动回收
+
+        1.okhttp使用了gc回收算法。
+        2.streamAllocation的数量会逐渐减少变为0
+        3.被线程池监测并回收，这样就可以保持多个Keep-alive链接
+
+
+okhttp中一次网络请求的大致过程
+
+    1.Call对象对请求的封装
+    2.dispatcher对请求的分发
+    3.getResponseWithInterceptiors()方法
+        此方法内部主要是:   拦截器链
+
+
+
+
+
