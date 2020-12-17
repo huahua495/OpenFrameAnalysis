@@ -1,10 +1,5 @@
 package com.hs.openframeanalysis;
 
-import com.hs.distribution.bean.UserLoginResultBean;
-import com.hs.distribution.http.RequestParameter;
-import com.hs.distribution.http.ServiceApi;
-import com.hs.distribution.http.UrlHelper;
-import com.hs.distribution.utils.AESUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +30,7 @@ public class RetrofitUtils {
                 Map<String, String> map = new HashMap<>();
                 try {
                     map.put("username", "18291882592");
-                    map.put("password", AESUtils.encryptAES("123456"));
+//                    map.put("password", AESUtils.encryptAES("123456"));
                     map.put("grant_type", "password");
                     map.put("scope", "server");
                 } catch (Exception e) {

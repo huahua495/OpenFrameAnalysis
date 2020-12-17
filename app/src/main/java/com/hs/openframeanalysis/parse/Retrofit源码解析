@@ -1,0 +1,150 @@
+********Retrofit
+    ****retrofit是什么？
+
+        网络请求框架的封装。
+        将HTTP请求抽象成为Java接口，通过注解描述网络请求的参数。
+        内部使用动态代理，将接口注解翻译成为一个个的HTTP请求，最后再由线程池执行HTTP请求。
+
+    ****Retrofit使用步骤:
+        1、添加Retrofit库的依赖,添加网络权限
+        2、创建接收服务器返回数据的实体类
+        3、创建用于描述网络请求的接口
+
+        4、创建Retrofit实例
+        5、创建网络接口请求的实例
+        6、发送网络请求。Call.enqueue()
+        7、处理服务器返回的数据
+
+********Retrofit代理
+
+    代理模式:
+        为其他对象提供一种代理,用以控制对这个对象的访问。
+
+    简单理解成为海外代购。
+
+    ****静态代理
+
+    ****动态代理
+        无侵入,增强方法。
+
+        代理类在程序运行时创建的代理方式。
+
+        ****1.jdk动态代理 (java内部反射机制实现)需要注意:只能为接口创建代理
+        ****2.CGLIB
+
+********Retrofit源码
+
+     ****成员变量
+
+        ****Map<Method, ServiceMethod<?>> serviceMethodCache = new ConcurrentHashMap<>()
+
+            Method          HTTP的请求方法
+            ServiceMethod   网络请求接口中对其方法进行注解后，通过解析之后的对象(与Method是成对出现的)
+
+            serviceMethodCache  用于缓存，网络请求的相关配置,方法，数据转换器，适配器等。
+
+        ****okhttp3.Call.Factory callFactory
+
+            用于生产OKhttpClient
+
+        ****HttpUrl baseUrl
+
+            网络请求的基地址
+
+        ****List<Converter.Factory> converterFactories
+
+            数据转换器工厂集合,用于生产我们需要的数据转换器
+
+        ****List<CallAdapter.Factory> callAdapterFactories
+
+            网络请求适配器工厂集合，用于生产CallAdapter
+
+        ****Executor callbackExecutor
+
+            用于执行回调,
+
+        ****boolean validateEagerly
+
+            标志位，是否立即解析接口当中的方法。
+
+
+    ****build类
+
+        ****Platform platform;
+            表示Retrofit适配的平台
+        ****okhttp3.Call.Factory callFactory;
+        ****HttpUrl baseUrl;
+        ****List<Converter.Factory> converterFactories = new ArrayList<>();
+        ****List<CallAdapter.Factory> callAdapterFactories = new ArrayList<>();
+        ****Executor callbackExecutor;
+        ****validateEagerly;
+
+    ****Platform类
+
+        查找对应的平台 Android、Java
+
+        Android平台默认与主线程绑定,所以才能 主线程，子线程切换。
+
+
+    ####根据调用方法解析
+
+         retrofit = new Retrofit.Builder()
+                    .baseUrl(UrlHelper.API_URL)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
+                    .build();
+
+        ####Retrofit.Builder()构造方法
+            查找对应的平台(Android、java)并初始化。
+
+        ####.baseUrl(UrlHelper.API_URL)
+            将String类型的Url地址转换为HttpUrl类型的地址。(地址必须以/结尾,否则报异常)
+
+        ####addConverterFactory()
+            将我们的数据转换器 添加到数据转换器工厂集合中
+
+        ####addCallAdapterFactory()
+            数据适配器添加到适配器工厂集合中。
+
+            RxJava3CallAdapterFactory.create() 适配Rxjava的
+
+
+        ####build()
+
+            配置Retrofit的成员变量。
+
+
+****CallAdapter<R,T>
+
+    Type responseType();
+    T adapt(Call<R> call);
+    abstract class Factory {
+
+    }
+
+    ####RxJavaCallAdapterFactory
+
+        1.继承CallAdapter内部的抽象类Factory
+        2.注册CallAdapter (通过addCallAdapterFactory)
+        3.调用Factory.get() 获取具体的CallAdapter
+        4.调用CallAdapter 的adapt方法  将我们的Call请求最终转换成每一个平台适用的adapter类型
+
+
+注意一点:
+        注解请求方式后设置完整的Url地址,在创建Retrofit对象时，可以不设置baseURL
+
+****创建网络接口请求实例
+    ServiceApi serviceApi = retrofit.create(ServiceApi.class);
+
+    内部使用动态代理解析请求的方法，参数等。
+
+
+
+
+****Retrofit请求
+
+    同步 OkHttpCall.execute();
+    异步 OkHttpCall.enqueue();
+
+        异步请求会将我们的回调方法教给回调执行器Exector
+

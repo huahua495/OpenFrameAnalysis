@@ -1,0 +1,150 @@
+****Glide几个基本概念
+
+    Model   图片数据来源
+    Data    图片原始数据
+    Resource 对原始数据解码
+    TransformedResource 转换
+    TranscodecdResource 转码
+    Target 显示目标
+
+
+    ****图片加载流程
+        1.Model 通过ModelLoader获取原始数据Data
+        2.对原始数据Data进行解码(Decodec) Resource
+        3.对图片进行裁剪等操作Transform 后的资源  TransformeResource
+        4.对图形进行转码操作 TransformeResource通过Transcode 后为 TransCodecResource
+        5.最后显示到Target(ImageView)
+
+****Glide详细配置
+    Glide.with(context)
+            .load(url)
+            .placeholder(R.mipmap.ic_launcher_round)
+            .error(R.mipmap.ic_launcher_round)
+            .override(300,300)  //指定图片尺寸
+            .fitCenter()                    //指定图片缩放类型
+            .centerCrop()                   //指定图片缩放类型
+            .skipMemoryCache(true)          //跳过内存缓存
+            .diskCacheStrategy(DiskCacheStrategy.NONE)  //跳过磁盘缓存
+            .diskCacheStrategy(DiskCacheStrategy.DATA)  //
+            .diskCacheStrategy(DiskCacheStrategy.RESOURCE)//仅仅缓存原来的全分辨率的图像
+            .diskCacheStrategy(DiskCacheStrategy.ALL)//缓存所有版本的图像
+            .priority(Priority.HIGH)//指定图片加载的优先级
+            .into(targetView);
+            }
+
+    ****缩放类型
+        fitCenter()
+            图片宽高缩小 并小于指定尺寸大小，图片完全显示
+
+        centerCrop()
+
+            填充整个imageview,图像可能不会完整显示。
+
+
+
+
+****Glide使用
+    Glide.with(context).load(url).into(targetView);
+
+
+    **** RequestManager requestManager=Glide.with()
+        ####RequestManagerRetriever
+        ####RequestManager
+
+        做一些准备工作,主要是为了RequestManager对象，管理图片请求。
+        RequestManager通过 RequestManagerRetriever 生产。
+        RequestManagerRetriever内部的get(context)方法，通过对contex类型进行判断
+        对不同声明周期的context进行不同操作。
+        if(context instanceof Application){
+            //获取Application单例的 RequestManager
+        }else if(context instanceof activity){
+            添加一个没有界面的RequestManagerFragment 与activity绑定。
+            RequestManagerFragment成员变量实现lifecycle，实现声明周期管理。
+            RequestManagerFragment 成员变量 RequestManager
+        }
+
+
+    ****RequestBuilder builder=load(url);
+        默认使用Drawable 加载资源。
+        public RequestBuilder<Drawable> load(@Nullable String string) {
+          return asDrawable().load(string);
+        }
+        调用RequestBuilder的load方法
+
+
+
+    **** ViewTarget viewTarget = into(targetView);
+        1.首先判断是否主线程，UI操作必须在主线程中进行。
+        2.通过GlideContext上下文对象创建ViewTarget对象。
+        3.调用RequestBuilder的into()方法将ViewTarget 参数传递
+            此方法做了哪些操作：
+                (1)创建加载图片的Request: Request buildRequest()
+                (2)需要对旧的ViewTarget绑定的Request进行删除
+                (3)绑定并发送Request
+                    viewTarget.setRequest(request);
+                    TargetTracker.track(target,request)
+
+
+
+    ****buildRequest()方法
+
+        调用的是buildRequestRecursive()方法
+
+
+
+        ImageViewTargetFactory工厂类构建目标对象。
+        如果设置asBitmap();  创建返回BitmapImageViewTarget对象
+        如果是Drawable类型， 创建返回DrawableImageViewTarget对象
+
+****
+    interface Target extends LifecycleListener{}
+
+    abstract class BaseTarget implements Target{}
+
+    abstract class ViewTarget extends BaseTarget{}
+    生命周期管理
+
+注意：Glid是如何避免图片加载错位的？
+
+
+
+
+
+     调用into(TargetView)方法时， RequestBuilder方法内部  。
+
+        1.首先获取与目标View绑定的Request对象，然后解绑(同时也会在请求追踪器中RequestTracker remove掉此Request)
+           Request previous = target.getRequest();
+           previous.clear();
+           previous.recycle();
+        2. 然后创建一个新的Request对象 绑定到目标View上(同时也会在请求追踪器中添加此Request)
+            Request request = buildRequest(target, targetListener, options, callbackExecutor);
+            target.setRequest(request);
+
+
+****RequestManager 图片加载请求对象管理者
+
+    RequestManager 生命周期管理。
+    ****成员变量
+        RequestTracker  请求追踪器
+        TargetTracker
+
+****RequestTracker  请求追踪器
+
+****Request
+
+####Glide缓存
+    ****内存缓存
+
+        1.LruCache
+
+        2.弱引用
+
+    EngineResource cached=loadFromCache(key,isMemoryCacheable);
+        内部使用LinkedHashMap,当大小达到一定阀值时,会使用LruCache算法清除。
+
+
+    EngineResource activity=loadFromActivityResources(key,isMemoryCacheable);
+        用于保存当前正在被使用的EngineResource对象, 弱引用方式。
+
+    ****硬盘缓存
+
