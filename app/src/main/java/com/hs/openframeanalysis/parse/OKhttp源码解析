@@ -159,13 +159,14 @@
 
 
     ********RetryAndFollowUpInterceptor     重试和失败重定向
-        1.获取Transmitter对象  此对象是OkHttp的应用程序和网络层之间的桥梁。
+        1.获取Transmitter对象并初始化请求连接池  此对象是OkHttp的应用程序和网络层之间的桥梁。
         while(true){
             2. Transmitter.prepareToConnect(request)
             3. 此方法递归调用 response = realChain.proceed(request, transmitter, null);
             4.根据异常结果或者响应结果判断是否进行重新请求
         }
-
+        ####Transmitter类
+            RealConnectionPool  请求连接池
 
     ********BridgeInterceptor               桥接和适配拦截器
         1.是负责将用户构建的衣蛾Request请求转化为能够进行网络访问的请求
@@ -173,6 +174,12 @@
         3.将网络请求回来的响应Response转化为用户可用的Response
 
     ********CacheInterceptor                缓存拦截器
+        1.首先从缓存中获取 Response对象，如果没有，直接进行网络请求
+            调用下一个拦截器 .proceed
+        2.如果缓存对象不为空，则返回
+
+
+
         根据CacheStrategy.Factory 创建缓存策略对象
         最终使用DiskLruCache
 

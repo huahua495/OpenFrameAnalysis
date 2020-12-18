@@ -32,7 +32,6 @@ public class OkHttpUtils {
         if (null == okHttpClient) {
             synchronized (OkHttpUtils.class) {
                 okHttpClient = new OkHttpClient.Builder()
-
                         .connectTimeout(TIME_OUT, TimeUnit.SECONDS)
                         .callTimeout(TIME_OUT, TimeUnit.SECONDS)
                         .writeTimeout(TIME_OUT, TimeUnit.SECONDS)

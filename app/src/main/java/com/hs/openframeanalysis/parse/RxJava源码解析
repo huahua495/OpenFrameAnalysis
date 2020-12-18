@@ -1,0 +1,40 @@
+RxJava
+    ####RxJava设计模式
+        观察者模式
+
+
+    ####异步
+
+****RxJava四要素
+    ####    Observerable    被观察者
+
+    ####    Observer        观察者
+
+    ####    订阅
+
+    ####    事件
+
+****RxJava使用
+
+    1.创建被观察者
+    2.创建观察者
+    3.订阅  被观察者  订阅   观察者
+
+****RxJava线程控制
+
+    Schedulers类
+        通过此类进行调度。
+
+        ****subscribeOn 订阅发生的线程
+        ****observeOn   事件消费所在的线程
+
+
+    subscribeOn 只能调用一次
+    observeOn   可以调用多次
+
+####Android多线程编程原则
+
+    1.不要阻塞UI线程(主线程)
+    2.不要再UI线程之外访问UI组件
+
+
